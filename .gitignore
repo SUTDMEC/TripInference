@@ -2,6 +2,10 @@
 __pycache__/
 *.py[cod]
 
+# Matlab extensions
+
+*.asv
+
 # C extensions
 *.so
 
