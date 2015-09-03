@@ -14,9 +14,9 @@ school_lon=103.8062975;
 
 
 %ground truth home coordinates
-home_lat=[1.32992944080094;1.33121574909076;1.33186166686553;1.32820555386601;1.32781414132580;1.32970308306266;1.32796373269814;1.33034760557324;1.32922872819711;1.33028341254650];
-home_lon=[103.808772171192;103.801598269294;103.803274790548;103.805980957317;103.804362143691;103.803138620502;103.809896471073;103.799143470792;103.812615791834;103.803991817046];
 
+home_lat=[1.32835836330687;1.33050563037640;1.32895877147526;1.32963377278973;1.32962814757104;1.33098904011965;1.33020143018736];
+home_lon=[103.809501039469;103.805803393233;103.805972513137;103.807701765119;103.802170900040;103.805878345900;103.801182439164];
 
 [raw_num,raw_txt,~]=xlsread([rootDir,'\',csvName]);
 
@@ -42,10 +42,10 @@ for i=1:length(devices) %import and parse all files individually
     ind_lat=find(isnan(lat));
     lat(ind_lat)=[];
     lon(ind_lat)=[];
-    time=utime; 
-    time(ind_lat)=[];
+    time{i}=utime; 
+    time{i}(ind_lat)=[];
 
-    [POI{i},trip_store{i},vel{i},trip_dist{i},latlon_school{i},latlon_home{i},school_home_dist(i)]=TripParse(time,lat,lon);
+    [POI{i},trip_store{i},vel{i},trip_dist{i},latlon_school{i},latlon_home{i},school_home_dist(i)]=TripParse(time{i},lat,lon);
     
     POIschool_ok(i,:)=POI{i}(2,:);
     POIhome_ok(i,:)=POI{i}(1,:);

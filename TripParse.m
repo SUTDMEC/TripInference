@@ -31,7 +31,7 @@ school_home_dist=0;
 
 stopped_thresh=0.1; %velocity in m/s below which we are stopped (0.4 km/h)
 
-stopped_dwell=24; %240 seconds in fast scan, or the time it takes the device to sleep
+stopped_dwell=90; %240 seconds in fast scan, or the time it takes the device to sleep
 
 high_thresh=40; %velocities higher than 144m/s are rejected
 
