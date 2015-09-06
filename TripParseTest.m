@@ -4,19 +4,36 @@ clc
 close all
 
 
-rootDir='C:\Users\Erik Wilhelm\Documents\GitHub\TripInference';
+% rootDir='C:\Users\Erik Wilhelm\Documents\GitHub\TripInference';
+% csvName='synthetic_sample_data.csv';
 
-csvName='synthetic_sample_data.csv';
+rootDir='C:\Users\Erik Wilhelm\Documents\Big Data (not backed up)\SUTD_data\SENSg\ServerModeData';
+csvName='10_bus_6sept15';
+GTcsvName=[ csvName '_gt.csv'];
+csvName=[ csvName '.csv'];
 
 %ground truth school coordinates
-school_lat=1.3298017;
-school_lon=103.8062975;
-
+%7_clean
+% school_lat=1.3298017;
+% school_lon=103.8062975;
 
 %ground truth home coordinates
 
-home_lat=[1.32835836330687;1.33050563037640;1.32895877147526;1.32963377278973;1.32962814757104;1.33098904011965;1.33020143018736];
-home_lon=[103.809501039469;103.805803393233;103.805972513137;103.807701765119;103.802170900040;103.805878345900;103.801182439164];
+%7_clean
+% home_lat=[1.32835836330687;1.33050563037640;1.32895877147526;1.32963377278973;1.32962814757104;1.33098904011965;1.33020143018736];
+% home_lon=[103.809501039469;103.805803393233;103.805972513137;103.807701765119;103.802170900040;103.805878345900;103.801182439164];
+
+
+[raw_num_gt,raw_txt_gt,~]=xlsread([rootDir,'\',GTcsvName]);
+
+% from Raw File
+school_lat=raw_num_gt(1,2);
+school_lon=raw_num_gt(1,3);
+
+
+home_lat=raw_num_gt(:,4);
+home_lon=raw_num_gt(:,5);
+
 
 [raw_num,raw_txt,~]=xlsread([rootDir,'\',csvName]);
 
