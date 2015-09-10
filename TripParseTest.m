@@ -3,51 +3,37 @@ clear
 clc
 close all
 
+figure
+trip_ax=gca;
+hold
 
 % rootDir='C:\Users\Erik Wilhelm\Documents\GitHub\TripInference';
 % csvName='synthetic_sample_data.csv';
 
 rootDir='C:\Users\Erik Wilhelm\Documents\Big Data (not backed up)\SUTD_data\SENSg\ServerModeData';
-csvName='10_bus_6sept15';
-GTcsvName=[ csvName '_gt.csv'];
+% csvName='10_bus_6sept15';
+csvName='pilot3_formatted_server.csv';
 csvName=[ csvName '.csv'];
 
-%ground truth school coordinates
-%7_clean
-% school_lat=1.3298017;
-% school_lon=103.8062975;
-
-%ground truth home coordinates
-
-%7_clean
-% home_lat=[1.32835836330687;1.33050563037640;1.32895877147526;1.32963377278973;1.32962814757104;1.33098904011965;1.33020143018736];
-% home_lon=[103.809501039469;103.805803393233;103.805972513137;103.807701765119;103.802170900040;103.805878345900;103.801182439164];
-
-
+GTcsvName=[ csvName '_gt.csv'];
 [raw_num_gt,raw_txt_gt,~]=xlsread([rootDir,'\',GTcsvName]);
-
 % from Raw File
 school_lat=raw_num_gt(1,2);
 school_lon=raw_num_gt(1,3);
-
-
 home_lat=raw_num_gt(:,4);
 home_lon=raw_num_gt(:,5);
 
+plot(trip_ax,school_lon, school_lat,'xk' ,'MarkerSize',14,'LineWidth',2) %plot ground truth from sample set
+plot(trip_ax,home_lon, home_lat,'rx','MarkerSize',14,'LineWidth',2) %plot ground truth from sample set
 
-[raw_num,raw_txt,~]=xlsread([rootDir,'\',csvName]);
-
+if ~exist('raw_num','var')
+    [raw_num,raw_txt,~]=xlsread([rootDir,'\',csvName]);
+end
 time_offset=0; % 8 hours of offset may be required if sensor data is in GMT and not SGT
 
 ID=raw_num(:,1); 
 devices=unique(ID,'stable'); %find all ID's of devices in the dataset
 
-figure
-trip_ax=gca;
-hold
-
-plot(trip_ax,school_lon, school_lat,'xk' ,'MarkerSize',14,'LineWidth',2) %plot ground truth from sample set
-plot(trip_ax,home_lon, home_lat,'rx','MarkerSize',14,'LineWidth',2) %plot ground truth from sample set
 
 for i=1:length(devices) %import and parse all files individually
     
