@@ -53,9 +53,8 @@ hourtime=hour(unix_time./86400+719529); %convert UNIX timestamps matlab time and
 %return lat/lon coordinates which are only during school time
 latlon=[lat lon];
 
-latlon_school=latlon(hourtime>school_start&hourtime<school_last,:);
-latlon_home=latlon(hourtime>home_start|hourtime<home_end,:);
-
+latlon_school=latlon(hourtime>=school_start&hourtime<school_last,:);
+latlon_home=latlon(hourtime>=home_start|hourtime<home_end,:);
 
 dist=zeros(length(unix_time),1);
 vel=zeros(length(unix_time),1);
@@ -85,11 +84,18 @@ for j=1:length(vel) %iterate through velocity vector
     if vel(j)<stopped_thresh %stopped points
         stopped_raw(j)=1;
         stop_count=stop_count+1;
+        
+        if (time_stop==0)
+            idx_stop_start = j;
+        end
+        
         if j>1
             time_stop=unix_time(j)-unix_time(j-1)+time_stop;
         end
         
         move_count=1;
+        
+        
     else
         trip_temp(move_count,:)=[lat(j) lon(j)]; %use full accuracy lat/lon instead of rounded values
         if move_count>=2 %count up the moving points to calculate trip distances
@@ -98,21 +104,29 @@ for j=1:length(vel) %iterate through velocity vector
             dist_temp(move_count)=0;
         end
         move_count=move_count+1;
+
+        if time_stop>stopped_dwell %if the number of stopped points crosses a threshold
+            stopped(j)=1;
+            idx_stop_end = j;
+            all_lat_stop = lat_round(idx_stop_start:idx_stop_end);
+            all_lon_stop = lon_round(idx_stop_start:idx_stop_end);
+            most_freq_lat = mode(all_lat_stop);
+            most_freq_lon = mode(all_lon_stop);
+            
+            POI(poi_count,:)=[most_freq_lat most_freq_lon]; % record a POI
+            %time_poi(poi_count,1)=unix_time(j);
+            trip_store{trip_count}=trip_temp; %record trip lat/lon
+            trip_temp=[];
+            trip_dist(j)=sum(dist_temp); %record total trip distance
+            trip_count=trip_count+1;
+            poi_count=poi_count+1;
+            stop_count=0; %reset counters
+            move_count=1; %reset counters
+        end
         time_stop=0;
+        
     end
     
-    if time_stop>stopped_dwell %if the number of stopped points crosses a threshold
-        stopped(j)=1;
-        POI(poi_count,:)=[lat_round(j) lon_round(j)]; % record a POI
-        %time_poi(poi_count,1)=unix_time(j);
-        trip_store{trip_count}=trip_temp; %record trip lat/lon
-        trip_temp=[];
-        trip_dist(j)=sum(dist_temp); %record total trip distance
-        trip_count=trip_count+1;
-        poi_count=poi_count+1;
-        stop_count=0; %reset counters
-        move_count=1; %reset counters
-    end
     
 end
 
@@ -135,10 +149,10 @@ if szPOI(1)>1 %again check if there are > 2 unique POI's
 
         ind_POI{k}=find(lat_round==POI(k,1)&lon_round==POI(k,2)); %find indices of the POIs in the vector
         
-        poi_school{k}=find(hourtime(ind_POI{k})>school_start&hourtime(ind_POI{k})<school_last); %find POI within time range
+        poi_school{k}=find(hourtime(ind_POI{k})>=school_start&hourtime(ind_POI{k})<school_last); %find POI within time range
         school_count(k)=length(poi_school{k});
 
-        poi_home{k}=find(hourtime(ind_POI{k})>home_start|hourtime(ind_POI{k})<home_end); %find POI within time range
+        poi_home{k}=find(hourtime(ind_POI{k})>=home_start|hourtime(ind_POI{k})<home_end); %find POI within time range
         home_count(k)=length(poi_home{k});
 
     end
