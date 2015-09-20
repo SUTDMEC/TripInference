@@ -31,22 +31,22 @@ school_home_dist=0;
 
 stopped_thresh=0.1; %velocity in m/s below which we are stopped (0.4 km/h)
 
-stopped_dwell=90; %240 seconds in fast scan, or the time it takes the device to sleep
+stopped_dwell=900; %240 seconds in fast scan, or the time it takes the device to sleep
 
 high_thresh=40; %velocities higher than 144m/s are rejected
 
 max_school_thresh=100; %school/home distances <Ym away are rejected - to negate the possibility of creating home/school links for sensors left at school by mistake
 
 %school assumption times
-school_start=9;
+school_start=7;
 school_last=12;
 
 %home assumption times
 home_start=22;
 home_end=5;
  
-lat_round=round(lat,4); %round lat to the nearest 10m
-lon_round=round(lon,4); %round lat to the nearest 10m
+lat_round=round(lat*10000)/10000; %round lat to the nearest 10m
+lon_round=round(lon*10000)/10000; %round lat to the nearest 10m
 
 hourtime=hour(unix_time./86400+719529); %convert UNIX timestamps matlab time and then to hours
 
@@ -79,12 +79,16 @@ poi_count=1;
 trip_count=1;
 trip_temp=[];
 dist_temp=0;
-
+time_stop=0;
 
 for j=1:length(vel) %iterate through velocity vector
     if vel(j)<stopped_thresh %stopped points
         stopped_raw(j)=1;
         stop_count=stop_count+1;
+        if j>1
+            time_stop=unix_time(j)-unix_time(j-1)+time_stop;
+        end
+        
         move_count=1;
     else
         trip_temp(move_count,:)=[lat(j) lon(j)]; %use full accuracy lat/lon instead of rounded values
@@ -94,11 +98,13 @@ for j=1:length(vel) %iterate through velocity vector
             dist_temp(move_count)=0;
         end
         move_count=move_count+1;
+        time_stop=0;
     end
     
-    if stop_count>stopped_dwell %if the number of stopped points crosses a threshold
+    if time_stop>stopped_dwell %if the number of stopped points crosses a threshold
         stopped(j)=1;
         POI(poi_count,:)=[lat_round(j) lon_round(j)]; % record a POI
+        %time_poi(poi_count,1)=unix_time(j);
         trip_store{trip_count}=trip_temp; %record trip lat/lon
         trip_temp=[];
         trip_dist(j)=sum(dist_temp); %record total trip distance
@@ -128,7 +134,7 @@ if szPOI(1)>1 %again check if there are > 2 unique POI's
     for k=1:szPOI(1)
 
         ind_POI{k}=find(lat_round==POI(k,1)&lon_round==POI(k,2)); %find indices of the POIs in the vector
-
+        
         poi_school{k}=find(hourtime(ind_POI{k})>school_start&hourtime(ind_POI{k})<school_last); %find POI within time range
         school_count(k)=length(poi_school{k});
 
@@ -145,15 +151,18 @@ end
 %move POIs to top of list, assume that if no school/home time POI is
 %identified, the value is NaN
 
+
+
 %school
 [sc_count,ind_sch]=max(school_count);
 %home
 [home_count,ind_home]=max(home_count);
 
+
 %only if there are hits for home time, assign to home
 if home_count>0 && ind_sch~=ind_home
     POI_final(1,:)=POI(ind_home,:);
-else
+else %this assumption applies if we wish to process an entire day
     POI_final=[NaN(2,2);POI];
     school_home_dist=NaN;
     return
@@ -169,15 +178,16 @@ else
 end
 
 %sort out home/school pairings < YY km away - these are anomolies
+sz_poi=size(POI_final);
+if sz_poi(1)>1
+    school_home_dist=lldistkm_vec(POI_final(1,:),POI_final(2,:));
 
-school_home_dist=lldistkm_vec(POI_final(1,:),POI_final(2,:));
-
-if school_home_dist*1000 < max_school_thresh
-    POI_final=[NaN(2,2);POI];
-    school_home_dist=NaN;
-    return
+    if school_home_dist*1000 < max_school_thresh
+        POI_final=[NaN(2,2);POI];
+        school_home_dist=NaN;
+        return
+    end
 end
-
 POI_rem=POI;
 POI_rem([ind_sch ind_home],:)=[];
 
