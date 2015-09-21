@@ -120,11 +120,9 @@ for j=1:length(vel) %iterate through velocity vector
             trip_dist(j)=sum(dist_temp); %record total trip distance
             trip_count=trip_count+1;
             poi_count=poi_count+1;
-            stop_count=0; %reset counters
-            move_count=1; %reset counters
         end
         time_stop=0;
-        
+        stop_count=0; %reset counters
     end
     
     
