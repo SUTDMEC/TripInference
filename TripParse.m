@@ -49,6 +49,7 @@ lat_round=round(lat*10000)/10000; %round lat to the nearest 10m
 lon_round=round(lon*10000)/10000; %round lat to the nearest 10m
 
 hourtime=hour(unix_time./86400+719529); %convert UNIX timestamps matlab time and then to hours
+delta_time = [0; diff(unix_time)];
 
 %return lat/lon coordinates which are only during school time
 latlon=[lat lon];
@@ -114,6 +115,8 @@ for j=1:length(vel) %iterate through velocity vector
             most_freq_lon = mode(all_lon_stop);
             
             POI(poi_count,:)=[most_freq_lat most_freq_lon]; % record a POI
+            idx_poi_start(poi_count) = idx_stop_start;
+            idx_poi_end(poi_count) = idx_stop_end;
             %time_poi(poi_count,1)=unix_time(j);
             trip_store{trip_count}=trip_temp; %record trip lat/lon
             trip_temp=[];
@@ -124,8 +127,26 @@ for j=1:length(vel) %iterate through velocity vector
         time_stop=0;
         stop_count=0; %reset counters
     end
+end
+
+% check the last stop segment if there's any
+if time_stop>stopped_dwell %if the number of stopped points crosses a threshold
+    stopped(j)=1;
+    idx_stop_end = j;
+    all_lat_stop = lat_round(idx_stop_start:idx_stop_end);
+    all_lon_stop = lon_round(idx_stop_start:idx_stop_end);
+    most_freq_lat = mode(all_lat_stop);
+    most_freq_lon = mode(all_lon_stop);
     
-    
+    POI(poi_count,:)=[most_freq_lat most_freq_lon]; % record a POI
+    idx_poi_start(poi_count) = idx_stop_start;
+    idx_poi_end(poi_count) = idx_stop_end;
+    %time_poi(poi_count,1)=unix_time(j);
+    trip_store{trip_count}=trip_temp; %record trip lat/lon
+    trip_temp=[];
+    trip_dist(j)=sum(dist_temp); %record total trip distance
+    trip_count=trip_count+1;
+    poi_count=poi_count+1;
 end
 
 % if there are fewer than 2 POI's identified, impossible to identify home/school - return
@@ -136,22 +157,43 @@ if poi_count<2
 end
 
 % find unique POI's in the set
-[~,ind,~] = unique(POI(:,1));
-
+[~,ind,~] = unique(POI,'rows');
+POI_old = POI;
 POI=POI(ind,:);
+
+
+% idx_poi_start = 
+
+POI_COVER_RANGE = 30; % distance of the covering range of the poi
 
 %find the POIs during school / home, and move them to top of list
 szPOI=size(POI);
 if szPOI(1)>1 %again check if there are > 2 unique POI's
     for k=1:szPOI(1)
 
-        ind_POI{k}=find(lat_round==POI(k,1)&lon_round==POI(k,2)); %find indices of the POIs in the vector
+        idx_same_poi = find(POI_old(:,1)==POI(k,1) & POI_old(:,2)==POI(k,2));
+        idx_of_poi = [];
+        for i_idx = 1:length(idx_same_poi)
+            idx_of_poi = [idx_of_poi; (idx_poi_start(idx_same_poi(i_idx)):idx_poi_end(idx_same_poi(i_idx)))'];
+        end
+        idx_of_poi = unique(idx_of_poi);
         
-        poi_school{k}=find(hourtime(ind_POI{k})>=school_start&hourtime(ind_POI{k})<school_last); %find POI within time range
-        school_count(k)=length(poi_school{k});
+        num_pt = length(lat);
+        latlon_poi = ones(num_pt,2);
+        latlon_poi(:,1) = latlon_poi(:,1)*POI(k,1);
+        latlon_poi(:,2) = latlon_poi(:,2)*POI(k,2);
+        dist_to_poi = lldistkm_vec(latlon,latlon_poi)*1000;
+        idx_near_poi = find(dist_to_poi <= POI_COVER_RANGE);
+        
+        ind_POI{k}= unique([idx_near_poi;idx_of_poi]);%find indices of the POIs in the vector
+        hourtime_poi = hourtime(ind_POI{k});
+        delta_time_poi = delta_time(ind_POI{k});
+        
+        poi_school{k}=find(hourtime_poi>=school_start & hourtime_poi<school_last); %find POI within time range
+        school_time(k)=sum(delta_time_poi(poi_school{k}));
 
-        poi_home{k}=find(hourtime(ind_POI{k})>=home_start|hourtime(ind_POI{k})<home_end); %find POI within time range
-        home_count(k)=length(poi_home{k});
+        poi_home{k}=find(hourtime_poi>=home_start | hourtime_poi<home_end); %find POI within time range
+        home_time(k)=sum(delta_time_poi(poi_home{k}));
 
     end
 else
@@ -166,13 +208,13 @@ end
 
 
 %school
-[sc_count,ind_sch]=max(school_count);
+[sc_time,ind_sch]=max(school_time);
 %home
-[home_count,ind_home]=max(home_count);
+[hm_time,ind_home]=max(home_time);
 
 
 %only if there are hits for home time, assign to home
-if home_count>0 && ind_sch~=ind_home
+if hm_time>0 && ind_sch~=ind_home
     POI_final(1,:)=POI(ind_home,:);
 else %this assumption applies if we wish to process an entire day
     POI_final=[NaN(2,2);POI];
@@ -181,7 +223,7 @@ else %this assumption applies if we wish to process an entire day
 end
 
 %only if there are hits for school time, assign to school
-if sc_count>0 && ind_sch~=ind_home
+if sc_time>0 && ind_sch~=ind_home
     POI_final(2,:)=POI(ind_sch,:);
 else
     POI_final=[NaN(2,2);POI];
