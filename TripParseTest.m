@@ -1,7 +1,7 @@
 
 clear
 clc
-close all
+% close all
 
 figure
 trip_ax=gca;
@@ -11,8 +11,12 @@ hold
 % csvName='synthetic_sample_data.csv';
 
 rootDir='C:\Users\DevBot\Documents\SENSgData';
-% csvName='10_bus_6sept15';
-csvName='pilot3_test_data';
+csvName='revised_9000XX_16sept15PM';
+
+% rootDir='C:\Users\DevBot\Documents\SENSgData';
+% % csvName='10_bus_6sept15';
+% csvName='pilot3_test_data';
+%csvName='pilot2_test_data';
 csvName=[ csvName '.csv'];
 
 % GTcsvName=[ csvName '_gt.csv'];
@@ -63,16 +67,18 @@ for i=1:length(devices) %import and parse all files individually
 %     [~,idx_start]=min(abs(time{i}-1436169600));
 %     [~,idx_end]=min(abs(time{i}-(1436169600+24*3600-1)));
     
-    %select the single day of 14-09-2015
-    [~,idx_start]=min(abs(time{i}-1436774400));
-    [~,idx_end]=min(abs(time{i}-(1436774400+24*3600-1)));
+%     %select the single day of 14-09-2015
+%     [~,idx_start]=min(abs(time{i}-1436774400));
+%     [~,idx_end]=min(abs(time{i}-(1436774400+24*3600-1)));
 
-    [POI{i},trip_store{i},vel{i},trip_dist{i},latlon_school{i},latlon_home{i},school_home_dist(i)]=TripParse(time{i}(idx_start:idx_end),lat(idx_start:idx_end),lon(idx_start:idx_end));
+%     [POI{i},trip_store{i},vel{i},trip_dist{i},latlon_school{i},latlon_home{i},school_home_dist(i)]=TripParse(time{i}(idx_start:idx_end),lat(idx_start:idx_end),lon(idx_start:idx_end));
     
-    disp('NID');
-    disp(devices(i));
-    disp('POI:');
-    disp(length(POI{i}));
+    [POI{i},trip_store{i},vel{i},trip_dist{i},latlon_school{i},latlon_home{i},school_home_dist(i)]=TripParse(time{i},lat,lon);
+    
+%     disp('NID');
+%     disp(devices(i));
+%     disp('POI:');
+%     disp(length(POI{i}));
     
     POIschool_ok(i,:)=POI{i}(2,:);
     POIhome_ok(i,:)=POI{i}(1,:);
@@ -81,4 +87,5 @@ for i=1:length(devices) %import and parse all files individually
     
     
 end
-
+dcm_obj = datacursormode(gcf);
+set(dcm_obj,'UpdateFcn',@dateStrPos)
