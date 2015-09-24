@@ -137,7 +137,7 @@ def processTrips(trip_store, list_POI):
 # Google Places search #
 ########################
 def getPlaces(lat, lon, radius, types):
-    key = "AIzaSyCC4s7x7t7KdbKPNzJTHyHf30RufnNCBwk" # Google API key
+    key = "key" # Google API key
     types_string = "|".join(types)
     req_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=%f,%f&radius=%d&key=%s&types=%s" % \
         (lat, lon, radius, key, types_string)
