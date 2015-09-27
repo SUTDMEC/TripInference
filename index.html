@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+<link rel="stylesheet" href="bootstrap.css">
 <style>
 	body {
 		background-color: #fff;
@@ -13,11 +13,18 @@
 	p {
 		font-size: 18px;
 	}
+	#map {
+		display: hidden;
+	}
+	#nodes-table {
+		height: 700px;
+		overflow: scroll;
+	}
 </style>
 <body>
 	<div class="container-fluid">
 		<div class="row">
-			<div class="col-md-1">
+			<div class="col-md-2">
 				<div id="nodes">
 					<h1>Nodes</h1>
 					<div id="nodes-table">
@@ -28,28 +35,36 @@
 					</div>
 				</div>
 			</div>
-			<div class="col-md-7">
-				<h1>Map</h1>
+			<div class="col-md-10">
+				<h1 id="map-title">Map</h1>
 				<div id="mapviz">
 				</div>
 			</div>
-			<div class="col-md-4">
+			<!-- <div class="col-md-4">
 				<h1>Chord</h1>
 				<div id="chordviz">
 				</div>
 				<div id="dataexpl">
 				</div>
-			</div>
+				<div id="map">
+				</div>
+			</div> -->
 		</div>
 	</div>
 	<script src="http://d3js.org/d3.v3.min.js"></script>
+	<script src="polyline.js"></script>
 	<script>
 		var types = ["Home", "School", "Food", "Commercial", "Recreation", "Others"];
 		var typeslc = types.map(function(d) { return d.toLowerCase(); });
 		var dsv = d3.dsv(" ", "text/plain");
 		
-		var width = 800,
-			height = 500;
+		var width = 1000, height = 700;
+			
+		var current_trip = 0;
+		var current_node = 0;
+		var current_trips = [];
+		var mode_directions = "walking";
+		var number_nodes = 0;
 			
 		var zoom = d3.behavior.zoom().scaleExtent([1, 10])
 	    .on("zoom", zoomed);
@@ -59,7 +74,6 @@
 		mapsvg.call(zoom);
 		
 		function zoomed() {
-			console.log("zoom");
 		  	mapsvg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
 		}
 		
@@ -74,25 +88,44 @@
 					var projection = d3.geo.mercator().scale(1).translate([0,0]);
 					var path = d3.geo.path().projection(projection);
 					var b  = getBounds(roads_list.features, path);
-					var s = .95 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height);
+					var s = .9 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height);
 					var t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
 
 					projection.scale(s).translate(t);
+					
+					function scaleMapToPoints(points, coordinates) {
+						projection.scale(1).translate([0,0]);
+						path = d3.geo.path().projection(projection);
+						points = points.map(function (d) { return [d[1], d[0]]; });
+						coordinates = coordinates.map(function (d) {return [+d[1], +d[0]];});
+						var geoj = [{"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": points}},
+						{"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": coordinates}}];
+						var b = getBounds(geoj, path);
+						var s = .9 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height);
+						var t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
+						projection.scale(s).translate(t);
+						redraw();
+					}
 
 					var roads = mapsvg.append("g").attr("class", "roads");
 					var sports = mapsvg.append("g").attr("class", "sports");
 					var parks = mapsvg.append("g").attr("class", "parks");
 					
-					// Add roads to the map
-					roads.selectAll(".road")
-					.data(roads_list.features)
-					.enter()
-					.append("path")
-					.attr("class", "road")
-					.attr("fill", "#fff")
-					.attr("stroke", colorScale(6))
-					.attr("d", path)
-					.attr("line-width", 1);		
+					redraw();
+					
+					function redraw() {
+						// Add roads to the map
+						roads.selectAll(".road").remove();
+						roads.selectAll(".road")
+						.data(roads_list.features)
+						.enter()
+						.append("path")
+						.attr("class", "road")
+						.attr("fill", "#fff")
+						.attr("stroke", colorScale(6))
+						.attr("d", path)
+						.attr("line-width", 1);
+					}
 					
 					// Can also add sports and recreation activities
 					// d3.json("sports.json", function(err, sports_list) {
@@ -116,7 +149,8 @@
 					// 	.attr("d", path)
 					// 	.attr("line-width", 1);
 					// });
-				
+					
+					mapsvg.append("g").attr("class", "lines");
 					mapsvg.append("g").attr("class", "points");
 					mapsvg.append("g").attr("class", "centroids");
 					mapsvg.append("g").attr("class", "selected");
@@ -152,7 +186,7 @@
 						.sortSubgroups(d3.descending)
 					    .matrix(matrix);
 
-						var innerRadius = Math.min(chord_width, chord_height) * .31;
+						var innerRadius = Math.min(chord_width, chord_height) * .25;
 						var outerRadius = innerRadius * 1.1;
 
 						chordsvg.append("g").selectAll("path")
@@ -187,6 +221,7 @@
 					    .style("text-anchor", function(d) { return d.angle > Math.PI ? "end" : null; })
 					    .text(function(d) { return types[d.index]; })
 						.attr("fill", "rgb(30,32,40)")
+						.style("font-size", "16px")
 						.attr("class", "label");
 						
 						function fade(opacity, i) {
@@ -236,48 +271,135 @@
 						}
 					}
 					
-					// Node pressed on the left panel
-					function pressedNode(node) {
-						// Print all data points on the map
-						var coordinates = data.filter(function(d) { return d.nid == node; }).map(function(d) { return [d.lat, d.lon]; });
+					function logPoints(coordinates) {
 						var points = mapsvg.select(".points").selectAll(".point").data(coordinates);
 						points.exit().remove();
 						points.enter().append("circle").attr("class", "point");
 						points.attr("cx", function(d) { return projection([d[1], d[0]])[0]; })
 						.attr("cy", function(d) { return projection([d[1], d[0]])[1]; })
 						.attr("r", 4)
-						.attr("fill", "rgba(140, 25, 25, 0.1)");
-						
-						// Load node POIs and print them too
-						d3.text("POI/"+node+".csv", function(text) {
-							var centroids = dsv.parseRows(text).map(function(row) {
+						.attr("fill", colorScale(0));
+					}
+					
+					function logLines(lines) {
+						var line = mapsvg.select(".lines").selectAll(".line").data(lines);
+						line.exit().remove();
+						line.enter().append("line").attr("class", "line");
+						line.attr("x1", function(d) { return projection([d[0][1], d[0][0]])[0]; })
+						.attr("y1", function(d) { return projection([d[0][1], d[0][0]])[1]; })
+						.attr("x2", function(d) { return projection([d[1][1], d[1][0]])[0]; })
+						.attr("y2", function(d) { return projection([d[1][1], d[1][0]])[1]; })
+						.attr("stroke-width", 3)
+						.attr("stroke", colorScale(3));
+						//.attr("fill", "rgba(140, 25, 25, 0.1)");
+					}
+					
+					function makeLinesData(coordinates) {
+						var lines = [];
+						for (var i = 1; i < coordinates.length; i++) {
+							var line = [coordinates[i], coordinates[i-1]];
+							lines.push(line);
+						}
+						return lines;
+					}
+					
+					// Node pressed on the left panel
+					function pressedNode(node) {
+						// Print all data points on the map
+						// var coordinates = data.filter(function(d) { return d.nid == node; }).map(function(d) { return [d.lat, d.lon]; });
+						// var points = mapsvg.select(".points").selectAll(".point").data(coordinates);
+						// points.exit().remove();
+						// points.enter().append("circle").attr("class", "point");
+						// points.attr("cx", function(d) { return projection([d[1], d[0]])[0]; })
+						// .attr("cy", function(d) { return projection([d[1], d[0]])[1]; })
+						// .attr("r", 4)
+						// .attr("fill", "rgba(140, 25, 25, 0.1)");
+						current_node = nodes.indexOf(node);
+						current_trip = 0;
+						d3.text("trips2/"+node+".csv", function(text) {
+							var trips = dsv.parseRows(text).map(function(row) {
 							    return row.map(function(value) {
 							      	return +value;
 							    });
 							});
-							var centroidsSVG = mapsvg.select(".centroids").selectAll(".centroid").data(centroids);
-							centroidsSVG.exit().remove();
-							centroidsSVG.enter().append("circle").attr("class", function(d) { return "centroid " + typeslc[d[2]]; });
-							centroidsSVG.attr("cx", function(d) { return projection([d[1], d[0]])[0]; })
-							.attr("cy", function(d) { return projection([d[1], d[0]])[1]; })
-							.attr("r", 6)
-							.attr("fill", function(d) { return colorScale(d[2]); })
-							.attr("stroke", "black");
-							
-							// Build chord diagram from node trip matrix
-							d3.text("trip_matrices/"+node+".csv", function(text) {
-								var matrix = dsv.parseRows(text).map(function(row) {
-								    return row.map(function(value) {
-								      	return +value;
-								    });
-								});
-								makeChordDiagram(matrix, centroids);
-							});
+							current_trips = trips;
+							printTrip();					
+						});
+						
+						// Load node POIs and print them too
+						// d3.text("POI/"+node+".csv", function(text) {
+						// 	var centroids = dsv.parseRows(text).map(function(row) {
+						// 	    return row.map(function(value) {
+						// 	      	return +value;
+						// 	    });
+						// 	});
+						// 	var centroidsSVG = mapsvg.select(".centroids").selectAll(".centroid").data(centroids);
+						// 	centroidsSVG.exit().remove();
+						// 	centroidsSVG.enter().append("circle").attr("class", function(d) { return "centroid " + typeslc[d[2]]; });
+						// 	centroidsSVG.attr("cx", function(d) { return projection([d[1], d[0]])[0]; })
+						// 	.attr("cy", function(d) { return projection([d[1], d[0]])[1]; })
+						// 	.attr("r", 6)
+						// 	.attr("fill", function(d) { return colorScale(d[2]); })
+						// 	.attr("stroke", "black");
+						//
+						// 	// Build chord diagram from node trip matrix
+						// 	d3.text("trip_matrices/"+node+".csv", function(text) {
+						// 		var matrix = dsv.parseRows(text).map(function(row) {
+						// 		    return row.map(function(value) {
+						// 		      	return +value;
+						// 		    });
+						// 		});
+						// 		makeChordDiagram(matrix, centroids);
+						// 	});
+						//});
+					}
+					
+					function printTrip() {
+						var coordinates = data.filter(function(d) { return d.nid == nodes[current_node]; });
+						coordinates = coordinates.filter(function(d, i) { return (i >= current_trips[current_trip][1] && i <= current_trips[current_trip][2]); }).filter(function(d, i) { return i%4 == 0; }).map(function(d) { return [d.lat, d.lon]; });
+						d3.select("#map-title").text("Map, node " + nodes[current_node] + ", trip " + current_trip)
+						d3.json("directions2/"+nodes[current_node]+"-"+current_trip+"-"+mode_directions+".json", function (trip_data) {
+							itineraire = polyline.decode(trip_data.overview_polyline.points);
+							scaleMapToPoints(itineraire, coordinates);
+							itineraire = makeLinesData(itineraire);
+							logLines(itineraire);
+							logPoints(coordinates);
 						});
 					}
+					
+					function keydown() {
+						console.log(d3.event.keyCode);
+						switch (d3.event.keyCode) {
+						case 39: // move one trip up
+							if (current_trip < current_trips.length - 1) {
+								current_trip++;
+								printTrip();
+							}
+							break;
+						case 37: // move one trip down
+							if (current_trip > 0) {
+								current_trip--;
+								printTrip();
+							}
+							break;
+						case 87: // move one node up
+							if (current_node < nodes.length-1) {
+								current_node++;
+								pressedNode(nodes[current_node]);
+							}
+							break;
+						case 81: // move one node down
+							if (current_node > 0) {
+								current_node--;
+								pressedNode(nodes[current_node]);
+							}
+							break;
+						}
+					}
+					d3.select(window).on("keydown", keydown);
 
 					function getBounds(features, path) {
-						var init_b = path.bounds(features[i]);
+						var init_b = path.bounds(features[0]);
 						var x1 = init_b[0][0], x2 = init_b[1][0], y1 = init_b[0][1], y2 = init_b[1][1];
 						for (var i = 0; i < features.length; i++) {
 							var b = path.bounds(features[i]);
