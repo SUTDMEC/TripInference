@@ -368,7 +368,7 @@ def processTripsMoreInfo(trips, pois, db):
 # https://developers.google.com/places/web-service/intro
 
 def getPlaces(lat, lon, radius, types):
-    key = "AIzaSyCC4s7x7t7KdbKPNzJTHyHf30RufnNCBwk" # Google API key
+    key = "" # Google API key
     types_string = "|".join(types)
     req_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=%f,%f&radius=%d&key=%s&types=%s" % \
         (lat, lon, radius, key, types_string)
@@ -382,7 +382,7 @@ def getPlaces(lat, lon, radius, types):
 # https://developers.google.com/maps/documentation/directions/intro
 
 def getDirections(lat_start, lon_start, lat_end, lon_end, mode):
-    key = "AIzaSyCC4s7x7t7KdbKPNzJTHyHf30RufnNCBwk" # Google API key
+    key = "" # Google API key
     req_url = "https://maps.googleapis.com/maps/api/directions/json?origin=%f,%f&destination=%f,%f&mode=%s&key=%s" % \
         (lat_start, lon_start, lat_end, lon_end, mode, key)
     r = requests.get(req_url)

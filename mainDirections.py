@@ -1,5 +1,4 @@
 import getActivities as ga
-import oldTripParse as otp
 import tripParse as tp
 import numpy as np
 import pandas as pd
@@ -36,7 +35,7 @@ data = np.genfromtxt("latlontime.csv", delimiter=",")
 data = data[1:-1,:] # Remove header
 nodes = np.unique(data[:,0]) # Get list of nodes
 total_trips_logged = 0
-for i in range(0, 1): # Iterate over nodes
+for i in range(0, len(nodes)): # Iterate over nodes
     print "--------------------------------------"
     nid = nodes[i]
     print "Node %d, index %d" % (nid, i)

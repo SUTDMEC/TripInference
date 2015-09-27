@@ -42,7 +42,7 @@ for i in range(0, len(outside_activities)):
 # Node processing #
 ###################      
 
-for i in range(50, 118): # Iterate over nodes
+for i in range(0, len(nodes)): # Iterate over nodes
     nid = nodes[i]
     cur_data = data[data[:,0]==nid,:] # Get data associated to nid
     t = cur_data[:, 1]
